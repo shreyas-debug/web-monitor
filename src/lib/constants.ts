@@ -17,7 +17,7 @@ export const DIFF_TEXT_MAX_CHARS = 1_500;
 export const TITLE_MAX_CHARS = 200;
 
 /** Gemini model to use for summarization */
-export const GEMINI_MODEL = "gemini-2.0-flash";
+export const GEMINI_MODEL = "gemini-2.5-flash";
 
 /** Default project name when none is provided */
 export const DEFAULT_PROJECT_NAME = "Default";
