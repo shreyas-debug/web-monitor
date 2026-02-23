@@ -56,16 +56,40 @@ export async function normalizeUrlForStorage(rawUrl: string): Promise<string> {
         throw new Error(`Unsupported protocol: "${parsedUrl.protocol}". Only HTTP and HTTPS are supported.`);
     }
 
-    // Dynamically import normalize-url (ESM-only package)
-    const { default: normalizeUrl } = await import("normalize-url");
+    // 1. Force HTTPS
+    parsedUrl.protocol = "https:";
 
-    return normalizeUrl(parsedUrl.href, {
-        defaultProtocol: "https",
-        forceHttps: true,
-        stripWWW: true,
-        removeTrailingSlash: true,
-        stripHash: true,
-        sortQueryParameters: true,
-        removeQueryParameters: TRACKING_PARAMS,
+    // 2. Strip www.
+    if (parsedUrl.hostname.startsWith("www.")) {
+        parsedUrl.hostname = parsedUrl.hostname.slice(4);
+    }
+
+    // 3. Strip hash fragments
+    parsedUrl.hash = "";
+
+    // 4. Strip trailing slash from pathname (except root "/")
+    let pathname = parsedUrl.pathname;
+    if (pathname.length > 1 && pathname.endsWith("/")) {
+        pathname = pathname.slice(0, -1);
+    }
+    parsedUrl.pathname = pathname;
+
+    // 5. Remove tracking parameters and sort the rest
+    const params = new URLSearchParams(parsedUrl.search);
+    const keysToDelete: string[] = [];
+
+    params.forEach((_, key) => {
+        if (TRACKING_PARAMS.some(regex => regex.test(key))) {
+            keysToDelete.push(key);
+        }
     });
+
+    keysToDelete.forEach(key => params.delete(key));
+    params.sort();
+
+    parsedUrl.search = params.toString();
+
+    // Reconstruct the final string manually to ensure consistency
+    // e.g. URL.toString() might append a trailing slash to the hostname if pathname is empty
+    return parsedUrl.toString().replace(/\/$/, "");
 }
