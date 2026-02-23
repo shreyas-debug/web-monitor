@@ -3,6 +3,10 @@
  * Provides a typed helper for summarizing webpage changes using gemini-2.0-flash.
  * Server-side only — the API key must never reach the client.
  *
+ * Token reduction strategy:
+ * - Receives only the CHANGED text (added/removed words), not full page content.
+ * - This reduces input token usage by ~80-90% compared to sending two full pages.
+ *
  * Uses lazy initialization to avoid env var validation during build time.
  */
 
@@ -32,23 +36,64 @@ const diffSummarySchema: ResponseSchema = {
             type: SchemaType.ARRAY,
             items: { type: SchemaType.STRING },
             description:
-                "Up to 5 exact quotes from the NEW content that best illustrate the changes",
+                "Up to 3 exact quotes from the ADDED content that best illustrate the changes",
         },
     },
     required: ["summary", "citations"],
 };
 
 /**
+ * Build a compact diff-aware prompt for Gemini.
+ *
+ * Sends ONLY the changed words to minimize token usage — not the full pages.
+ * The caller is responsible for capping input sizes before calling this.
+ */
+function buildPrompt(removedText: string, addedText: string): string {
+    const removedSection = removedText.trim()
+        ? `REMOVED (content that no longer appears):\n---\n${removedText}\n---\n\n`
+        : "";
+
+    const addedSection = addedText.trim()
+        ? `ADDED (new content on the page):\n---\n${addedText}\n---`
+        : "(no new text detected — context may have shifted)";
+
+    return `You are analyzing changes to a webpage. Below are ONLY the words that changed.
+
+${removedSection}${addedSection}
+
+Summarize what changed in 2-3 sentences. Then cite up to 3 exact short quotes from the ADDED content that best illustrate the changes. Be concise.`;
+}
+
+/**
+ * Parse the Gemini retry delay from a 429 error message.
+ * Falls back to a provided default if parsing fails.
+ */
+function parseRetryDelay(error: Error, defaultMs: number): number {
+    const match = error.message.match(/retryDelay['":\s]+["']?(\d+)s/i);
+    if (match) {
+        return parseInt(match[1], 10) * 1000;
+    }
+    return defaultMs;
+}
+
+/**
  * Summarize the changes between two versions of a webpage using Gemini.
  *
- * @param oldContent - The previous version of the page's readable text
- * @param newContent - The current version of the page's readable text
+ * Accepts pre-extracted diff text (added/removed words only) to minimize tokens.
+ *
+ * @param removedText - Words/phrases that were removed from the page
+ * @param addedText - Words/phrases that were added to the page
  * @returns Structured summary with citations, or null if the call fails
  */
 export async function summarizeChanges(
-    oldContent: string,
-    newContent: string
+    removedText: string,
+    addedText: string
 ): Promise<DiffSummary | null> {
+    // Skip API call if there's nothing meaningful to summarize
+    if (!removedText.trim() && !addedText.trim()) {
+        return null;
+    }
+
     const model = getGenAI().getGenerativeModel({
         model: "gemini-2.0-flash",
         generationConfig: {
@@ -57,21 +102,9 @@ export async function summarizeChanges(
         },
     });
 
-    const prompt = `You are analyzing changes to a webpage. Below is the PREVIOUS version and the NEW version of the page content.
+    const prompt = buildPrompt(removedText, addedText);
 
-PREVIOUS VERSION:
----
-${oldContent.slice(0, 8000)}
----
-
-NEW VERSION:
----
-${newContent.slice(0, 8000)}
----
-
-Summarize what changed in 2-3 sentences. Then list up to 5 exact quotes from the NEW content that best illustrate the changes.`;
-
-    // Retry up to 2 times with exponential backoff for 429 rate-limit errors
+    // Retry up to 2 times, using the server's suggested retry delay on 429s
     const MAX_RETRIES = 2;
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         try {
@@ -83,8 +116,13 @@ Summarize what changed in 2-3 sentences. Then list up to 5 exact quotes from the
             const is429 = error instanceof Error && error.message?.includes("429");
 
             if (is429 && attempt < MAX_RETRIES) {
-                const delay = (attempt + 1) * 4000; // 4s, 8s
-                console.warn(`[Gemini] Rate limited (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay}ms...`);
+                const fallbackDelay = (attempt + 1) * 5000; // 5s, 10s baseline
+                const delay = error instanceof Error
+                    ? parseRetryDelay(error, fallbackDelay)
+                    : fallbackDelay;
+                console.warn(
+                    `[Gemini] Rate limited (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay}ms...`
+                );
                 await new Promise((resolve) => setTimeout(resolve, delay));
                 continue;
             }
@@ -99,15 +137,12 @@ Summarize what changed in 2-3 sentences. Then list up to 5 exact quotes from the
 
 /**
  * Minimal health check for the Gemini API connection.
- * Uses a lightweight models.list API call instead of generateContent
- * to avoid burning quota and hitting 429 rate limits on the free tier.
+ * Uses a lightweight models.list API call to avoid burning quota on the free tier.
  *
  * @returns true if healthy, false otherwise
  */
 export async function checkGeminiHealth(): Promise<boolean> {
     try {
-        // Use a lightweight fetch to the models endpoint instead of generating content.
-        // This avoids consuming quota and triggering 429 errors on the free tier.
         const response = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models?key=${env.geminiApiKey}`,
             { signal: AbortSignal.timeout(5000) }

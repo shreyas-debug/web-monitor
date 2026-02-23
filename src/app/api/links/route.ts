@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { normalizeUrlForStorage } from "@/lib/url-utils";
 import type { MonitoredLink, LinkWithLatestCheck, AddLinkRequest, ApiError } from "@/lib/types";
 
 /**
@@ -62,22 +63,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<Monitored
         const body: AddLinkRequest = await request.json();
         const { url, project_name } = body;
 
-        // Validate URL format
-        if (!url || typeof url !== "string") {
-            return NextResponse.json({ error: "URL is required" }, { status: 400 });
-        }
-
-        let parsedUrl: URL;
+        // Validate and normalize URL (strips utm params, www prefix, trailing slash, etc.)
+        let normalizedUrl: string;
         try {
-            parsedUrl = new URL(url);
-            if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-                throw new Error("Invalid protocol");
-            }
-        } catch {
-            return NextResponse.json(
-                { error: "Invalid URL. Must be a valid HTTP or HTTPS URL." },
-                { status: 400 }
-            );
+            normalizedUrl = await normalizeUrlForStorage(url);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Invalid URL";
+            return NextResponse.json({ error: message }, { status: 400 });
         }
 
         // Check total link count (max 8)
@@ -97,11 +89,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<Monitored
             );
         }
 
-        // Check for duplicates
+        // Check for duplicates using the normalized URL
         const { data: existing } = await supabase
             .from("monitored_links")
             .select("id")
-            .eq("url", parsedUrl.href)
+            .eq("url", normalizedUrl)
             .limit(1);
 
         if (existing && existing.length > 0) {
@@ -111,10 +103,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<Monitored
             );
         }
 
-        // Attempt to auto-scrape the page title
         let title: string | null = null;
         try {
-            const response = await fetch(parsedUrl.href, {
+            const response = await fetch(normalizedUrl, {
                 headers: {
                     "User-Agent":
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -123,20 +114,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<Monitored
             });
             const html = await response.text();
 
-            // Extract title from HTML using a simple regex (lightweight, no full DOM parse needed)
             const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
             if (titleMatch && titleMatch[1]) {
                 title = titleMatch[1].trim().slice(0, 200);
             }
         } catch {
-            // Title scraping is best-effort — don't block link creation on failure
-            console.warn(`[POST /api/links] Could not scrape title for ${parsedUrl.href}`);
+            console.warn(`[POST /api/links] Could not scrape title for ${normalizedUrl}`);
         }
 
         // Insert the new link
         const { data: newLink, error: insertError } = await supabase
             .from("monitored_links")
-            .insert({ url: parsedUrl.href, title, project_name: project_name || "Default" })
+            .insert({ url: normalizedUrl, title, project_name: project_name || "Default" })
             .select()
             .single();
 
