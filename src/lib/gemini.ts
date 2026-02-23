@@ -49,16 +49,15 @@ export async function summarizeChanges(
     oldContent: string,
     newContent: string
 ): Promise<DiffSummary | null> {
-    try {
-        const model = getGenAI().getGenerativeModel({
-            model: "gemini-2.0-flash",
-            generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: diffSummarySchema,
-            },
-        });
+    const model = getGenAI().getGenerativeModel({
+        model: "gemini-2.0-flash",
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: diffSummarySchema,
+        },
+    });
 
-        const prompt = `You are analyzing changes to a webpage. Below is the PREVIOUS version and the NEW version of the page content.
+    const prompt = `You are analyzing changes to a webpage. Below is the PREVIOUS version and the NEW version of the page content.
 
 PREVIOUS VERSION:
 ---
@@ -72,15 +71,30 @@ ${newContent.slice(0, 8000)}
 
 Summarize what changed in 2-3 sentences. Then list up to 5 exact quotes from the NEW content that best illustrate the changes.`;
 
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        const parsed: DiffSummary = JSON.parse(text);
+    // Retry up to 2 times with exponential backoff for 429 rate-limit errors
+    const MAX_RETRIES = 2;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const result = await model.generateContent(prompt);
+            const text = result.response.text();
+            const parsed: DiffSummary = JSON.parse(text);
+            return parsed;
+        } catch (error) {
+            const is429 = error instanceof Error && error.message?.includes("429");
 
-        return parsed;
-    } catch (error) {
-        console.error("[Gemini] Failed to summarize changes:", error);
-        return null;
+            if (is429 && attempt < MAX_RETRIES) {
+                const delay = (attempt + 1) * 4000; // 4s, 8s
+                console.warn(`[Gemini] Rate limited (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${delay}ms...`);
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                continue;
+            }
+
+            console.error("[Gemini] Failed to summarize changes:", error);
+            return null;
+        }
     }
+
+    return null;
 }
 
 /**
@@ -91,16 +105,16 @@ Summarize what changed in 2-3 sentences. Then list up to 5 exact quotes from the
  * @returns true if healthy, false otherwise
  */
 export async function checkGeminiHealth(): Promise<boolean> {
-  try {
-    // Use a lightweight fetch to the models endpoint instead of generating content.
-    // This avoids consuming quota and triggering 429 errors on the free tier.
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${env.geminiApiKey}`,
-      { signal: AbortSignal.timeout(5000) }
-    );
-    return response.ok;
-  } catch (error) {
-    console.error("[Gemini] Health check failed:", error);
-    return false;
-  }
+    try {
+        // Use a lightweight fetch to the models endpoint instead of generating content.
+        // This avoids consuming quota and triggering 429 errors on the free tier.
+        const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${env.geminiApiKey}`,
+            { signal: AbortSignal.timeout(5000) }
+        );
+        return response.ok;
+    } catch (error) {
+        console.error("[Gemini] Health check failed:", error);
+        return false;
+    }
 }
