@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { deleteLink } from "@/lib/controllers";
+import { deleteLink } from "@/lib/controllers/links.controller";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

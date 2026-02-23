@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { runCheck } from "@/lib/controllers";
+import { runCheck } from "@/lib/controllers/check.controller";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

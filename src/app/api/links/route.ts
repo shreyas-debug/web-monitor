@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { listLinks, addLink } from "@/lib/controllers";
+import { listLinks, addLink } from "@/lib/controllers/links.controller";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
