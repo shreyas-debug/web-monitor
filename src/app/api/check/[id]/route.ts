@@ -83,6 +83,14 @@ function computeHash(content: string): string {
     return createHash("sha256").update(content, "utf-8").digest("hex");
 }
 
+export async function GET(
+    _request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+): Promise<NextResponse<{ message: string; id: string }>> {
+    const { id } = await params;
+    return NextResponse.json({ message: "Check route reachable", id }, { status: 200 });
+}
+
 export async function POST(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }

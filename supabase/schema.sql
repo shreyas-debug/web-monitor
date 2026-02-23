@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS monitored_links (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   url         TEXT UNIQUE NOT NULL,
   title       TEXT,
+  project_name TEXT NOT NULL DEFAULT 'Default',
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 

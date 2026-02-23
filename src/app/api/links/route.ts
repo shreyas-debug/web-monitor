@@ -60,7 +60,7 @@ export async function GET(): Promise<NextResponse<LinkWithLatestCheck[] | ApiErr
 export async function POST(request: NextRequest): Promise<NextResponse<MonitoredLink | ApiError>> {
     try {
         const body: AddLinkRequest = await request.json();
-        const { url } = body;
+        const { url, project_name } = body;
 
         // Validate URL format
         if (!url || typeof url !== "string") {
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Monitored
         // Insert the new link
         const { data: newLink, error: insertError } = await supabase
             .from("monitored_links")
-            .insert({ url: parsedUrl.href, title })
+            .insert({ url: parsedUrl.href, title, project_name: project_name || "Default" })
             .select()
             .single();
 

@@ -37,6 +37,7 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
     const [history, setHistory] = useState<LinkCheck[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
 
     // Cooldown timer: decrements every second until 0
     useEffect(() => {
@@ -143,6 +144,14 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
             minute: "2-digit",
         });
     }
+
+    const handleHistoryClick = useCallback((checkId: string) => {
+        if (selectedHistoryId === checkId) {
+            setSelectedHistoryId(null);
+        } else {
+            setSelectedHistoryId(checkId);
+        }
+    }, [selectedHistoryId]);
 
     // Use the most recent check result: local state (from a just-completed check) takes priority
     const lastCheckStatus = checkResult?.status || link.latest_check?.status || null;
@@ -303,17 +312,36 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                                     {history.map((check) => (
                                         <div
                                             key={check.id}
-                                            className="flex items-center justify-between py-1.5 px-2 rounded bg-zinc-800/50"
+                                            className={`flex flex-col py-1.5 px-2 rounded cursor-pointer transition-colors ${selectedHistoryId === check.id ? "bg-zinc-800" : "bg-zinc-800/50 hover:bg-zinc-800"}`}
+                                            onClick={() => handleHistoryClick(check.id)}
                                         >
-                                            <span className="text-xs text-zinc-400">
-                                                {new Date(check.fetched_at).toLocaleString("en-US", {
-                                                    month: "short",
-                                                    day: "numeric",
-                                                    hour: "2-digit",
-                                                    minute: "2-digit",
-                                                })}
-                                            </span>
-                                            <StatusBadge status={check.status} />
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs text-zinc-400">
+                                                    {new Date(check.fetched_at).toLocaleString("en-US", {
+                                                        month: "short",
+                                                        day: "numeric",
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                    })}
+                                                </span>
+                                                <StatusBadge status={check.status} />
+                                            </div>
+                                            {selectedHistoryId === check.id && (
+                                                <div className="mt-2 text-xs text-zinc-300 bg-zinc-900 p-2 rounded border border-zinc-700 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                                    {check.diff_summary ? (
+                                                        <>
+                                                            <span className="font-semibold text-indigo-400 block mb-1">AI Summary:</span>
+                                                            {check.diff_summary.summary}
+                                                        </>
+                                                    ) : check.status === "error" ? (
+                                                        <span className="text-red-400">{check.error_message || "Error during check."}</span>
+                                                    ) : check.status === "no_change" ? (
+                                                        <span className="text-zinc-500 italic">No changes detected in this check.</span>
+                                                    ) : (
+                                                        <span className="text-zinc-500 italic">No AI summary available.</span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

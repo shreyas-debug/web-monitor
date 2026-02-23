@@ -17,6 +17,7 @@ interface AddLinkFormProps {
 
 export function AddLinkForm({ onLinkAdded, currentLinkCount }: AddLinkFormProps) {
     const [url, setUrl] = useState("");
+    const [projectName, setProjectName] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -52,7 +53,7 @@ export function AddLinkForm({ onLinkAdded, currentLinkCount }: AddLinkFormProps)
             const response = await fetch("/api/links", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url }),
+                body: JSON.stringify({ url, project_name: projectName || "Default" }),
             });
 
             const data = await response.json();
@@ -63,6 +64,7 @@ export function AddLinkForm({ onLinkAdded, currentLinkCount }: AddLinkFormProps)
             }
 
             setUrl("");
+            setProjectName("");
             onLinkAdded();
         } catch {
             setError("Network error. Please try again.");
@@ -72,8 +74,19 @@ export function AddLinkForm({ onLinkAdded, currentLinkCount }: AddLinkFormProps)
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-2">
-            <div className="flex gap-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                    type="text"
+                    value={projectName}
+                    onChange={(e) => {
+                        setProjectName(e.target.value);
+                        if (error) setError(null);
+                    }}
+                    placeholder="Project (optional)"
+                    className="sm:max-w-[200px] bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-indigo-500 focus:ring-indigo-500/20"
+                    disabled={isSubmitting}
+                />
                 <Input
                     type="text"
                     value={url}

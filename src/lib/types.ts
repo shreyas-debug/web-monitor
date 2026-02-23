@@ -10,6 +10,7 @@ export interface MonitoredLink {
     id: string;
     url: string;
     title: string | null;
+    project_name: string;
     created_at: string;
 }
 
@@ -65,6 +66,7 @@ export interface DiffChange {
 /** Request body for POST /api/links */
 export interface AddLinkRequest {
     url: string;
+    project_name?: string;
 }
 
 /** Generic API error response */

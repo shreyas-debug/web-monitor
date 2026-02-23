@@ -95,15 +95,31 @@ export default function HomePage() {
             </p>
           </div>
         ) : (
-          // Link cards
-          <div className="space-y-3">
-            {links.map((link) => (
-              <LinkCard
-                key={link.id}
-                link={link}
-                onDelete={fetchLinks}
-                onCheckComplete={fetchLinks}
-              />
+          // Link cards grouped by project
+          <div className="space-y-6">
+            {Object.entries(
+              links.reduce((acc, link) => {
+                const project = link.project_name || "Default";
+                if (!acc[project]) acc[project] = [];
+                acc[project].push(link);
+                return acc;
+              }, {} as Record<string, LinkWithLatestCheck[]>)
+            ).sort(([a], [b]) => a.localeCompare(b)).map(([project, projectLinks]) => (
+              <div key={project} className="space-y-3">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-indigo-400/80 bg-indigo-500/10 py-1 px-3 rounded-full inline-block">
+                  {project}
+                </h3>
+                <div className="space-y-3 pl-2 border-l-2 border-zinc-800 ml-1">
+                  {projectLinks.map((link) => (
+                    <LinkCard
+                      key={link.id}
+                      link={link}
+                      onDelete={fetchLinks}
+                      onCheckComplete={fetchLinks}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
