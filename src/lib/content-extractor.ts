@@ -5,69 +5,50 @@
  * reduce complexity of the main request handler.
  */
 
-import { JSDOM } from "jsdom";
-import { Readability } from "@mozilla/readability";
+import * as cheerio from "cheerio";
 import { createHash } from "crypto";
 
 /**
- * Extract clean, readable text from raw HTML using Mozilla's Readability algorithm.
+ * Extract clean, readable text from raw HTML using Cheerio.
  *
- * Extraction priority:
- * 1. Readability (best for article/blog/news content)
- * 2. Raw body text with scripts/styles removed (for pages Readability can't parse)
- * 3. Regex tag stripping (final fallback)
+ * Extraction strategy:
+ * 1. Load HTML into Cheerio
+ * 2. Remove non-content elements (scripts, styles, navs, footers, etc.)
+ * 3. Extract text and normalize whitespace
  *
  * @param html - Raw HTML string from a fetch response
- * @param url - The page URL (required by JSDOM for relative link resolution)
+ * @param url - The page URL (unused by Cheerio, kept for signature compatibility)
  * @returns Cleaned readable text content
  */
-export function extractReadableText(html: string, url: string): string {
-    const readabilityText = tryReadability(html, url);
-    if (readabilityText.length > 50) {
-        return readabilityText;
-    }
-
-    const bodyText = tryBodyExtraction(html, url);
-    if (bodyText.length > 0) {
-        return bodyText;
-    }
-
-    // Final fallback: strip all HTML tags with regex
-    return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-/**
- * Attempt Readability-based extraction.
- * Returns empty string if Readability fails or produces insufficient content.
- */
-function tryReadability(html: string, url: string): string {
+export function extractReadableText(html: string, _url: string): string {
     try {
-        const dom = new JSDOM(html, { url });
-        const reader = new Readability(dom.window.document);
-        const article = reader.parse();
-        if (article?.textContent) {
-            return article.textContent.replace(/\n{3,}/g, "\n\n").trim();
+        const $ = cheerio.load(html);
+
+        // Remove non-content elements that clutter diffs
+        $(
+            "script, style, noscript, iframe, svg, nav, footer, header, .nav, .footer, .header, .menu, .sidebar, #nav, #footer, #header"
+        ).remove();
+
+        // Target the main content area if it exists, otherwise use the whole body
+        let contentEl = $("main, article, [role='main'], #main, #content").first();
+
+        if (!contentEl.length) {
+            contentEl = $("body");
         }
+
+        // Fallback to the whole document if somehow body is missing
+        const rawText = contentEl.length ? contentEl.text() : $.text();
+
+        // Clean up whitespace (remove excessive newlines and spaces)
+        return rawText
+            .replace(/\n{3,}/g, "\n\n") // Collapse 3+ newlines to 2
+            .replace(/[ \t]+/g, " ")    // Collapse multiple spaces/tabs to 1
+            .trim();
     } catch (error) {
-        console.warn("[content-extractor] Readability failed:", error);
-    }
-    return "";
-}
+        console.warn("[content-extractor] Cheerio extraction failed:", error);
 
-/**
- * Attempt raw DOM body text extraction with script/style removal.
- */
-function tryBodyExtraction(html: string, url: string): string {
-    try {
-        const dom = new JSDOM(html, { url });
-        const body = dom.window.document.body;
-        if (!body) return "";
-
-        // Remove non-content elements
-        body.querySelectorAll("script, style, noscript").forEach((el) => el.remove());
-        return (body.textContent ?? "").replace(/\s+/g, " ").trim();
-    } catch {
-        return "";
+        // Final fallback: strip all HTML tags with regex
+        return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
     }
 }
 
