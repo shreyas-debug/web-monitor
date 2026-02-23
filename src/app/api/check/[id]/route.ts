@@ -21,6 +21,10 @@ import { supabase } from "@/lib/supabase";
 import { summarizeChanges } from "@/lib/gemini";
 import type { CheckResult, DiffChange, ApiError, LinkCheck } from "@/lib/types";
 
+// Force Node.js runtime for jsdom compatibility and disable static caching
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /** Chrome-like User-Agent to reduce bot-blocking by target sites */
 const USER_AGENT =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";

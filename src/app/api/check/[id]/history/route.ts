@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import type { LinkCheck, ApiError } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
     _request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
