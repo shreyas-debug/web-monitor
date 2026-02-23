@@ -12,6 +12,7 @@
 
 import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
 import { env } from "./env";
+import { GEMINI_MODEL } from "./constants";
 import type { DiffSummary } from "./types";
 
 /** Lazily initialized Gemini client */
@@ -95,7 +96,7 @@ export async function summarizeChanges(
     }
 
     const model = getGenAI().getGenerativeModel({
-        model: "gemini-2.0-flash",
+        model: GEMINI_MODEL,
         generationConfig: {
             responseMimeType: "application/json",
             responseSchema: diffSummarySchema,

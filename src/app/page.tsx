@@ -6,34 +6,14 @@
  * and an empty state when no links are added.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useLinks } from "@/hooks/useLinks";
 import { AddLinkForm } from "@/components/AddLinkForm";
 import { LinkCard } from "@/components/LinkCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { LinkWithLatestCheck } from "@/lib/types";
 
 export default function HomePage() {
-  const [links, setLinks] = useState<LinkWithLatestCheck[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  /** Fetch all monitored links from the API */
-  const fetchLinks = useCallback(async () => {
-    try {
-      const response = await fetch("/api/links");
-      if (response.ok) {
-        const data: LinkWithLatestCheck[] = await response.json();
-        setLinks(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch links:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchLinks();
-  }, [fetchLinks]);
+  const { links, isLoading, refresh } = useLinks();
 
   return (
     <div className="space-y-8">
@@ -54,7 +34,7 @@ export default function HomePage() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 mb-3">
           Add URL to Monitor
         </h2>
-        <AddLinkForm onLinkAdded={fetchLinks} currentLinkCount={links.length} />
+        <AddLinkForm onLinkAdded={refresh} currentLinkCount={links.length} />
       </div>
 
       {/* Monitored Links List */}
@@ -114,8 +94,8 @@ export default function HomePage() {
                     <LinkCard
                       key={link.id}
                       link={link}
-                      onDelete={fetchLinks}
-                      onCheckComplete={fetchLinks}
+                      onDelete={refresh}
+                      onCheckComplete={refresh}
                     />
                   ))}
                 </div>

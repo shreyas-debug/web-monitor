@@ -77,6 +77,8 @@ export function AddLinkForm({ onLinkAdded, currentLinkCount }: AddLinkFormProps)
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-2">
                 <Input
+                    id="project-name"
+                    name="project_name"
                     type="text"
                     value={projectName}
                     onChange={(e) => {
@@ -86,9 +88,12 @@ export function AddLinkForm({ onLinkAdded, currentLinkCount }: AddLinkFormProps)
                     placeholder="Project (optional)"
                     className="sm:max-w-[200px] bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-indigo-500 focus:ring-indigo-500/20"
                     disabled={isSubmitting}
+                    autoComplete="off"
                 />
                 <Input
-                    type="text"
+                    id="monitor-url"
+                    name="url"
+                    type="url"
                     value={url}
                     onChange={(e) => {
                         setUrl(e.target.value);
@@ -98,6 +103,7 @@ export function AddLinkForm({ onLinkAdded, currentLinkCount }: AddLinkFormProps)
                     className="flex-1 bg-zinc-900 border-zinc-700 text-zinc-100 placeholder:text-zinc-500 focus:border-indigo-500 focus:ring-indigo-500/20"
                     disabled={isSubmitting}
                     aria-label="URL to monitor"
+                    autoComplete="url"
                 />
                 <Button
                     type="submit"
