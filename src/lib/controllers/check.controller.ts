@@ -124,7 +124,8 @@ export async function runCheck(id: string): Promise<NextResponse> {
         // Step 4: First time check (Baseline) — store record and return early
         if (!lastCheck) {
             // Send truncated text to Gemini to get a 2-sentence page summary
-            const initialSummary = await summarizeInitialPage(cleanText.slice(0, DIFF_TEXT_MAX_CHARS * 2));
+            // Limit to 3000 chars to ensure the Edge function stays well under the 10s Vercel limit
+            const initialSummary = await summarizeInitialPage(cleanText.slice(0, 3000));
 
             const { data: firstCheck, error: insertError } = await supabase
                 .from("link_checks")
