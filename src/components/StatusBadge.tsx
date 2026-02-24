@@ -8,7 +8,7 @@
 import { Badge } from "@/components/ui/badge";
 
 interface StatusBadgeProps {
-    status: "success" | "no_change" | "error" | null;
+    status: "success" | "no_change" | "error" | "initial_baseline" | null;
 }
 
 const statusConfig = {
@@ -23,6 +23,10 @@ const statusConfig = {
     error: {
         label: "Error",
         className: "bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/20",
+    },
+    initial_baseline: {
+        label: "Baseline",
+        className: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/20",
     },
 } as const;
 

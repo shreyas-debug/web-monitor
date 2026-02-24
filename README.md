@@ -13,6 +13,8 @@ Add any webpage URL (pricing pages, documentation, policy pages, etc.) and monit
 5. **Summarizes** the exact diffs using **Google Gemini 2.5 Flash** to explain *what* changed and provide exact quotes.
 6. **Stores** the result in Supabase so you can view the history of the last 5 checks.
 
+**Note:** The very first check creates an initial baseline snapshot. This stores a short AI-generated overview of the page. Diffs and change summaries are generated only from the second check onward.
+
 ## Tech Stack & Architecture
 
 - **Framework**: Next.js 15 (App Router, TypeScript)

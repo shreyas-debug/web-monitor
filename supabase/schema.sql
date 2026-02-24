@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS link_checks (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   link_id       UUID NOT NULL REFERENCES monitored_links(id) ON DELETE CASCADE,
   fetched_at    TIMESTAMPTZ DEFAULT now(),
-  status        TEXT NOT NULL CHECK (status IN ('success', 'no_change', 'error')),
+  status        TEXT NOT NULL CHECK (status IN ('success', 'no_change', 'error', 'initial_baseline')),
   raw_content   TEXT,
   content_hash  TEXT,
   diff_summary  JSONB,
@@ -30,3 +30,7 @@ CREATE TABLE IF NOT EXISTS link_checks (
 -- Index for fast lookups of checks by link, ordered by most recent first
 CREATE INDEX IF NOT EXISTS idx_link_checks_link_id_fetched
   ON link_checks (link_id, fetched_at DESC);
+
+-- Example script to update an existing table constraint:
+-- ALTER TABLE link_checks DROP CONSTRAINT IF EXISTS link_checks_status_check;
+-- ALTER TABLE link_checks ADD CONSTRAINT link_checks_status_check CHECK (status IN ('success', 'no_change', 'error', 'initial_baseline'));

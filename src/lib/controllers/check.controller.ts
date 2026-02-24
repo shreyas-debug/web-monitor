@@ -11,7 +11,7 @@
 import { NextResponse } from "next/server";
 import { diffWords } from "diff";
 import { supabase } from "@/lib/supabase";
-import { summarizeChanges } from "@/lib/gemini";
+import { summarizeChanges, summarizeInitialPage } from "@/lib/gemini";
 import { extractReadableText, computeContentHash } from "@/lib/content-extractor";
 import { AppError, handleError } from "@/lib/errors";
 import {
@@ -121,19 +121,43 @@ export async function runCheck(id: string): Promise<NextResponse> {
 
         const lastCheck = lastChecks && lastChecks.length > 0 ? lastChecks[0] : null;
 
-        // Step 4: No change — store record and return early
-        if (lastCheck && lastCheck.content_hash === contentHash) {
-            const { data: noChangeCheck } = await supabase
+        // Step 4: First time check (Baseline) — store record and return early
+        if (!lastCheck) {
+            // Send truncated text to Gemini to get a 2-sentence page summary
+            const initialSummary = await summarizeInitialPage(cleanText.slice(0, DIFF_TEXT_MAX_CHARS * 2));
+
+            const { data: firstCheck, error: insertError } = await supabase
+                .from("link_checks")
+                .insert({
+                    link_id: id,
+                    status: "initial_baseline",
+                    raw_content: cleanText,
+                    content_hash: contentHash,
+                    diff_summary: initialSummary,
+                })
+                .select()
+                .single();
+
+            if (insertError) throw new AppError("Failed to save initial baseline result", 500);
+
+            return NextResponse.json({ status: "initial_baseline", check: firstCheck as LinkCheck, diff: [] });
+        }
+
+        // Step 5: No change — store record and return early
+        if (lastCheck.content_hash === contentHash) {
+            const { data: noChangeCheck, error: insertError } = await supabase
                 .from("link_checks")
                 .insert({ link_id: id, status: "no_change", raw_content: cleanText, content_hash: contentHash })
                 .select()
                 .single();
 
+            if (insertError) throw new AppError("Failed to save no-change result", 500);
+
             return NextResponse.json({ status: "no_change", check: noChangeCheck as LinkCheck, diff: null });
         }
 
-        // Step 5: Compute word-level diff
-        const previousContent = lastCheck?.raw_content ?? "";
+        // Step 6: Compute word-level diff since changes exist
+        const previousContent = lastCheck.raw_content ?? "";
         const diffResult = diffWords(previousContent, cleanText);
         const diffChanges: DiffChange[] = diffResult.map((part) => ({
             value: part.value,
@@ -141,7 +165,7 @@ export async function runCheck(id: string): Promise<NextResponse> {
             removed: part.removed || undefined,
         }));
 
-        // Step 6: Build diff-only text for Gemini (token-efficient)
+        // Step 7: Build diff-only text for Gemini (token-efficient)
         const addedText = diffResult
             .filter((p) => p.added)
             .map((p) => p.value)

@@ -19,7 +19,7 @@ export interface LinkCheck {
     id: string;
     link_id: string;
     fetched_at: string;
-    status: "success" | "no_change" | "error";
+    status: "success" | "no_change" | "error" | "initial_baseline";
     raw_content: string | null;
     content_hash: string | null;
     diff_summary: DiffSummary | null;
@@ -49,7 +49,7 @@ export interface StatusResponse {
 
 /** Response from POST /api/check/[id] when content has changed */
 export interface CheckResult {
-    status: "success" | "no_change" | "error";
+    status: "success" | "no_change" | "error" | "initial_baseline";
     check: LinkCheck;
     diff: DiffChange[] | null;
 }
