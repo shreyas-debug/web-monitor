@@ -6,14 +6,14 @@ A lightweight, production-ready webpage change monitor with AI-powered summaries
 
 Add any webpage URL (pricing pages, documentation, policy pages, etc.) and monitor it for content changes. When you click "Check Now," the app:
 
-1. **Fetches** the page and handles Vercel timeout constraints.
-2. **Extracts** clean, readable text using `cheerio`, stripping out CSS, scripts, and hidden prompt injection vectors.
+1. **Fetches** the page with strict timeouts to stay within Vercel execution limits.
+2. **Extracts** clean, readable text using `cheerio`, stripping CSS, scripts, and hidden elements to reduce noise and prompt injection risk.
 3. **Hashes** the content using the Web Crypto API (`crypto.subtle.digest`) to instantly detect if a full diff is necessary.
 4. **Diffs** the old and new text at the word level if changes are detected.
-5. **Summarizes** the exact diffs using **Google Gemini 2.5 Flash** to explain *what* changed and provide exact quotes.
+5. **Summarizes** detected changes using **Google Gemini 2.5 Flash**, including short explanations and quoted snippets.
 6. **Stores** the result in Supabase so you can view the history of the last 5 checks.
 
-**Note:** The very first check creates an initial baseline snapshot. This stores a short AI-generated overview of the page. Diffs and change summaries are generated only from the second check onward.
+**Note:** The very first check creates an **initial baseline snapshot**. This stores a short AI-generated overview of the page. Diffs and change summaries are generated only from the second check onward.
 
 ## Tech Stack & Architecture
 
@@ -56,7 +56,7 @@ npm run dev
 ## Production Hardening Features
 
 This application includes several enterprise-grade security and performance enhancements:
-- **Anti-DoS Rate Limiting:** Global middleware intercepts traffic and limits IP addresses to 5 checks per minute via Upstash Redis.
+- **Rate Limiting:** Global middleware intercepts traffic and limits IP addresses to 5 checks per minute via Upstash Redis.
 - **Vercel Edge Computing:** The core scraping and AI route (`/api/check`) runs on the Vercel Edge Runtime, eliminating Node.js cold starts.
 - **Graceful Failures:** Enforces strict 8-second HTTP fetch timeouts to gracefully fail before Vercel's hard 10-second Serverless limit.
 - **Indirect Prompt Injection Defense:** Aggressively strips hidden DOM elements (`<noscript>`, `<style>`) and isolates untrusted user data in the Gemini prompt.
@@ -70,9 +70,9 @@ This application includes several enterprise-grade security and performance enha
 - AI-generated summary of changes with cited snippets (Gemini 2.5 Flash)
 - Word-level diff view with green (added) / red (removed) highlighting
 - Check history (last 5 checks per URL)
-- Health status page (`/status`) with auto-refresh every 30 seconds
 - 30-second cooldown on "Check Now" to prevent scraping abuse
 - Full error handling on all API routes
+- Health status page (`/status`) with auto-refresh every 30 seconds
 - Environment variable validation on startup
 
 ## Project Structure
@@ -114,6 +114,6 @@ src/
 
 - **No authentication**: Any user can access the app. Out of scope for this challenge.
 - **Some sites block scraping**: Sites with aggressive bot protection (Cloudflare, etc.) may return errors or CAPTCHAs.
-- **Content size limits**: Very large pages may be truncated when sent to Gemini (1,500 char limit per diff segment to avoid hallucination and timeouts).
+- **Content size limits**: Very large pages may be truncated before being sent to Gemini to reduce hallucination risk and execution time.
 - **No real-time updates**: Polling-based; no WebSocket/SSE for live change notifications.
 - **No scheduled checks**: Users must manually click "Check Now"; no cron-based automatic monitoring.
