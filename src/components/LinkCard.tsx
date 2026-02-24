@@ -341,10 +341,10 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     {checkResult && checkResult.status === "initial_baseline" && (
                         <div className="mt-4 p-4 rounded-lg bg-indigo-500/5 border border-indigo-500/20">
                             <h4 className="text-sm font-semibold text-indigo-400 flex items-center gap-2 mb-2">
-                                Baseline Established 🎯
+                                Baseline Established
                             </h4>
                             <p className="text-xs text-indigo-300/80 mb-3">
-                                This is the first time we&apos;ve checked this page. We&apos;ve saved the current version. Future checks will highlight any changes made from today onwards.
+                                This is the first time we&apos;ve checked this page. We&apos;ve saved the current version. Future checks will highlight any changes compared to this version.
                             </p>
 
                             {/* Show the initial Gemini Summary if generated */}
