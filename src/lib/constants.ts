@@ -7,8 +7,8 @@
 /** Maximum number of monitored links per user */
 export const MAX_LINKS = 8;
 
-/** HTTP fetch timeout in milliseconds */
-export const FETCH_TIMEOUT_MS = 20_000;
+/** HTTP fetch timeout in milliseconds (8s to beat Vercel's 10s limit) */
+export const FETCH_TIMEOUT_MS = 8_000;
 
 /** Maximum characters of added/removed diff text sent to Gemini */
 export const DIFF_TEXT_MAX_CHARS = 1_500;

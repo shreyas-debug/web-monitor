@@ -107,7 +107,7 @@ export async function runCheck(id: string): Promise<NextResponse> {
         }
 
         // Step 3: Compute hash and compare
-        const contentHash = computeContentHash(cleanText);
+        const contentHash = await computeContentHash(cleanText);
 
         const { data: lastChecks } = await supabase
             .from("link_checks")

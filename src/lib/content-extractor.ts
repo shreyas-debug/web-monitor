@@ -6,7 +6,6 @@
  */
 
 import * as cheerio from "cheerio";
-import { createHash } from "crypto";
 
 /**
  * Extract clean, readable text from raw HTML using Cheerio.
@@ -41,8 +40,9 @@ export function extractReadableText(html: string, _url: string): string {
 
         // Clean up whitespace (remove excessive newlines and spaces)
         return rawText
-            .replace(/\n{3,}/g, "\n\n") // Collapse 3+ newlines to 2
-            .replace(/[ \t]+/g, " ")    // Collapse multiple spaces/tabs to 1
+            .replace(/^[ \t]+|[ \t]+$/gm, "") // Trim spaces from start/end of each line
+            .replace(/\n{3,}/g, "\n\n")       // Collapse 3+ newlines to 2
+            .replace(/[ \t]+/g, " ")          // Collapse multiple spaces/tabs to 1
             .trim();
     } catch (error) {
         console.warn("[content-extractor] Cheerio extraction failed:", error);
@@ -59,6 +59,10 @@ export function extractReadableText(html: string, _url: string): string {
  * @param content - The text content to hash
  * @returns Lowercase hex SHA-256 digest
  */
-export function computeContentHash(content: string): string {
-    return createHash("sha256").update(content, "utf-8").digest("hex");
+export async function computeContentHash(content: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(content);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
