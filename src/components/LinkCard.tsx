@@ -16,6 +16,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
 import { DiffView } from "./DiffView";
 import type { LinkWithLatestCheck, LinkCheck, CheckResult, DiffChange } from "@/lib/types";
@@ -68,7 +69,22 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
             const data: CheckResult = await response.json();
 
             if (!response.ok) {
-                setError("error" in data ? String((data as { error: string }).error) : "Check failed");
+                if (response.status === 429) {
+                    const resetTimeStr = response.headers.get("x-ratelimit-reset");
+                    if (resetTimeStr) {
+                        const resetTime = parseInt(resetTimeStr, 10);
+                        const secWait = Math.max(1, Math.ceil((resetTime - Date.now()) / 1000));
+                        setCooldown(secWait);
+                        const msg = `Rate limit exceeded. Try again in ${secWait} seconds.`;
+                        setError(msg);
+                        toast.error(msg);
+                        return;
+                    }
+                }
+
+                const msg = "error" in data ? String((data as { error: string }).error) : "Check failed";
+                setError(msg);
+                toast.error(msg);
                 return;
             }
 
@@ -79,9 +95,11 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
 
             // Start 30-second cooldown
             setCooldown(30);
+            toast.success("Check completed successfully");
             onCheckComplete();
         } catch {
             setError("Network error. Please try again.");
+            toast.error("Network error. Please try again.");
         } finally {
             setIsChecking(false);
         }
@@ -117,9 +135,13 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
         try {
             const response = await fetch(`/api/links/${link.id}`, { method: "DELETE" });
             if (response.ok) {
+                toast.success("URL removed from monitoring");
                 onDelete();
+            } else {
+                toast.error("Failed to delete link");
             }
         } catch {
+            toast.error("Failed to delete link");
             setError("Failed to delete link");
         } finally {
             setIsDeleting(false);
@@ -157,12 +179,31 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
     const lastCheckStatus = checkResult?.status || link.latest_check?.status || null;
     const lastCheckTime = checkResult?.check?.fetched_at || link.latest_check?.fetched_at || null;
 
+    // Highlight if the *latest* check was successful (meaning a change was found & diff recorded)
+    const hasRecentChanges = lastCheckStatus === "success";
+
     return (
-        <Card className="bg-zinc-900/50 border-zinc-800 hover:border-zinc-700 transition-colors">
+        <Card className={`transition-all duration-300 relative overflow-hidden ${hasRecentChanges
+            ? "bg-zinc-900/80 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.1)] hover:border-emerald-400"
+            : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-700"
+            }`}>
+            {/* Loading Overlay */}
+            {isChecking && (
+                <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-[1px] z-10 pointers-events-none flex items-center justify-center pointer-events-none">
+                    <div className="bg-zinc-900/90 rounded-full px-4 py-2 border border-indigo-500/30 flex items-center gap-2 shadow-xl">
+                        <svg className="animate-spin h-4 w-4 text-indigo-400" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span className="text-sm font-medium text-indigo-300">Checking...</span>
+                    </div>
+                </div>
+            )}
+
             {/* ── Collapsed Header (always visible) ── */}
             <div
-                className="flex items-center justify-between gap-3 p-4 cursor-pointer select-none"
-                onClick={() => setIsExpanded(!isExpanded)}
+                className={`flex items-center justify-between gap-3 p-4 cursor-pointer select-none ${isChecking ? 'opacity-30' : 'opacity-100'}`}
+                onClick={() => !isChecking && setIsExpanded(!isExpanded)}
             >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Expand/collapse chevron */}
@@ -178,11 +219,18 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     </svg>
 
                     {/* Title and URL (compact) */}
-                    <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-zinc-100 truncate text-sm">
-                            {link.title || new URL(link.url).hostname}
-                        </h3>
-                        <span className="text-xs text-zinc-500 truncate block">{link.url}</span>
+                    <div className="min-w-0 flex-1 flex items-center gap-2">
+                        <div className="min-w-0">
+                            <h3 className="font-semibold text-zinc-100 items-center flex gap-2 text-sm truncate">
+                                {link.title || new URL(link.url).hostname}
+                                {link.project_name && link.project_name !== "Default" && (
+                                    <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-indigo-400 bg-indigo-500/10 hidden sm:inline-block py-0.5 px-2 rounded-full border border-indigo-500/20">
+                                        {link.project_name}
+                                    </span>
+                                )}
+                            </h3>
+                            <span className="text-xs text-zinc-500 truncate block">{link.url}</span>
+                        </div>
                     </div>
 
                     {/* Status and timestamp (compact) */}
@@ -200,16 +248,10 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                         size="sm"
                         onClick={handleCheck}
                         disabled={isChecking || cooldown > 0}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors disabled:opacity-50 h-7 px-3"
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors disabled:opacity-0 h-7 px-3 w-[100px]"
                     >
                         {isChecking ? (
-                            <span className="flex items-center gap-1.5">
-                                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                                Checking
-                            </span>
+                            "" // Spinner handled by overlay
                         ) : cooldown > 0 ? (
                             `${cooldown}s`
                         ) : (

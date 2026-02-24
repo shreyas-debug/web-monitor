@@ -8,6 +8,20 @@
 
 import type { DiffChange, DiffSummary } from "@/lib/types";
 
+function parseMarkdownBold(text: string) {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+            return (
+                <strong key={index} className="text-indigo-200 font-semibold">
+                    {part.slice(2, -2)}
+                </strong>
+            );
+        }
+        return part;
+    });
+}
+
 interface DiffViewProps {
     diff: DiffChange[];
     summary: DiffSummary | null;
@@ -88,7 +102,9 @@ export function DiffView({ diff, summary }: DiffViewProps) {
                         </div>
                         <h4 className="text-sm font-semibold text-indigo-300">AI Summary</h4>
                     </div>
-                    <p className="text-sm text-zinc-300 leading-relaxed mb-3">{summary.summary}</p>
+                    <p className="text-sm text-zinc-300 leading-relaxed mb-3">
+                        {parseMarkdownBold(summary.summary)}
+                    </p>
 
                     {summary.citations.length > 0 && (
                         <div className="space-y-2">
@@ -117,7 +133,7 @@ export function DiffView({ diff, summary }: DiffViewProps) {
                         <h4 className="text-sm font-semibold text-zinc-400">AI Summary Unavailable</h4>
                     </div>
                     <p className="text-xs text-zinc-500 leading-relaxed">
-                        The changes were recorded, but the summary could not be generated. This usually happens if the AI provider's temporary rate limits have been reached, or if the text was too large.
+                        The changes were recorded, but the summary could not be generated. This usually happens if the AI provider&apos;s temporary rate limits have been reached, or if the text was too large.
                     </p>
                 </div>
             )}

@@ -69,6 +69,7 @@ ${removedSection}${addedSection}
 --- END UNTRUSTED TEXT ---
 
 Based ONLY on the text above, summarize what changed in 2-3 sentences. 
+Use **markdown bolding** to highlight the 2 or 3 most critical changed words or numbers in your summary.
 Then cite up to 3 exact short quotes from the ADDED content that best illustrate the changes. Be concise.`;
 }
 
