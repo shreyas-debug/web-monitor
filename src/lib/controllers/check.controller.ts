@@ -115,7 +115,7 @@ export async function runCheck(id: string): Promise<NextResponse> {
             .from("link_checks")
             .select("*")
             .eq("link_id", id)
-            .in("status", ["success", "no_change"])
+            .in("status", ["success", "no_change", "initial_baseline"])
             .order("fetched_at", { ascending: false })
             .limit(1);
 
