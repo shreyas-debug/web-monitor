@@ -95,7 +95,9 @@ export async function runCheck(id: string): Promise<NextResponse> {
         } catch (fetchError) {
             const message = fetchError instanceof AppError
                 ? fetchError.message
-                : "Unknown fetch error";
+                : fetchError instanceof Error
+                    ? fetchError.message
+                    : "Unknown fetch error";
             console.error(`[runCheck] Fetch failed for ${link.url}:`, fetchError);
             return await saveErrorCheck(id, message);
         }

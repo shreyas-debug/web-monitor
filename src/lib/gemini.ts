@@ -13,6 +13,7 @@
 import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from "@google/generative-ai";
 import { env } from "./env";
 import { GEMINI_MODEL } from "./constants";
+import { AppError } from "./errors";
 import type { DiffSummary } from "./types";
 
 /** Lazily initialized Gemini client */
@@ -137,7 +138,14 @@ export async function summarizeChanges(
             }
 
             console.error("[Gemini] Failed to summarize changes:", error);
-            return null;
+
+            // Surface 503 errors (high demand) explicitly
+            if (error instanceof Error && error.message?.includes("503")) {
+                throw new AppError("AI model is currently experiencing high demand. Please try again later.", 503);
+            }
+
+            // Break the loop and return null for other errors so the check succeeds but without a summary
+            break;
         }
     }
 

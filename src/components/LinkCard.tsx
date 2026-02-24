@@ -18,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { StatusBadge } from "./StatusBadge";
-import { DiffView } from "./DiffView";
+import { DiffView, parseMarkdownBold } from "./DiffView";
 import type { LinkWithLatestCheck, LinkCheck, CheckResult, DiffChange } from "@/lib/types";
 
 interface LinkCardProps {
@@ -248,12 +248,18 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                         size="sm"
                         onClick={handleCheck}
                         disabled={isChecking || cooldown > 0}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors disabled:opacity-0 h-7 px-3 w-[100px]"
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors disabled:opacity-50 h-7 px-3 min-w-[100px]"
                     >
                         {isChecking ? (
-                            "" // Spinner handled by overlay
+                            <span className="flex items-center gap-2">
+                                <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                <span>Checking...</span>
+                            </span>
                         ) : cooldown > 0 ? (
-                            `${cooldown}s`
+                            `Wait ${cooldown}s`
                         ) : (
                             "Check Now"
                         )}
@@ -291,13 +297,29 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     </a>
 
                     {/* History toggle */}
-                    <div className="mt-3">
-                        <button
+                    <div className="mt-4 flex items-center justify-between border-t border-zinc-800/50 pt-3">
+                        <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={handleToggleHistory}
-                            className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors underline underline-offset-2"
+                            className="bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 text-xs h-8 px-3 transition-all"
                         >
-                            {showHistory ? "Hide history" : "Show last 5 checks"}
-                        </button>
+                            {showHistory ? (
+                                <span className="flex items-center gap-2">
+                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                                    </svg>
+                                    Hide History
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-2">
+                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Show History
+                                </span>
+                            )}
+                        </Button>
                     </div>
 
                     {/* Error message */}
@@ -307,8 +329,8 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                         </div>
                     )}
 
-                    {/* Check Result: Diff + AI Summary (shown inline after check) */}
-                    {checkResult && checkResult.status === "success" && diffData && diffData.length > 0 && (
+                    {/* Check Result: Diff + AI Summary (shown inline after check, hidden if history is open) */}
+                    {!showHistory && checkResult && checkResult.status === "success" && diffData && diffData.length > 0 && (
                         <DiffView
                             diff={diffData}
                             summary={checkResult.check.diff_summary}
@@ -316,7 +338,7 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     )}
 
                     {/* Check Result: First check success (content saved, but no previous to diff against) */}
-                    {checkResult && checkResult.status === "success" && (!diffData || diffData.length === 0) && (
+                    {!showHistory && checkResult && checkResult.status === "success" && (!diffData || diffData.length === 0) && (
                         <div className="mt-4 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
                             <p className="text-sm text-emerald-300 flex items-center gap-2">
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -328,7 +350,7 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     )}
 
                     {/* Check Result: No Change message */}
-                    {checkResult && checkResult.status === "no_change" && (
+                    {!showHistory && checkResult && checkResult.status === "no_change" && (
                         <div className="mt-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
                             <p className="text-sm text-amber-300 flex items-center gap-2">
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -369,14 +391,31 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                                                 <StatusBadge status={check.status} />
                                             </div>
                                             {selectedHistoryId === check.id && (
-                                                <div className="mt-2 text-xs text-zinc-300 bg-zinc-900 p-2 rounded border border-zinc-700 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                                <div className="mt-2 text-xs text-zinc-300 bg-zinc-900 p-3 rounded-lg border border-zinc-700/50 shadow-inner cursor-default space-y-3" onClick={(e) => e.stopPropagation()}>
                                                     {check.diff_summary ? (
                                                         <>
-                                                            <span className="font-semibold text-indigo-400 block mb-1">AI Summary:</span>
-                                                            {check.diff_summary.summary}
+                                                            <div>
+                                                                <span className="font-semibold text-indigo-400 flex items-center gap-1.5 mb-1.5">
+                                                                    <svg className="h-3 w-3 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                                                    AI Summary
+                                                                </span>
+                                                                <p className="leading-relaxed text-zinc-300">
+                                                                    {parseMarkdownBold(check.diff_summary.summary)}
+                                                                </p>
+                                                            </div>
+                                                            {check.diff_summary.citations && check.diff_summary.citations.length > 0 && (
+                                                                <div className="space-y-1.5 pt-2 border-t border-zinc-800">
+                                                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Key Snippets</span>
+                                                                    {check.diff_summary.citations.map((citation, idx) => (
+                                                                        <blockquote key={idx} className="border-l-2 border-indigo-500/40 pl-2 py-0.5 text-zinc-400 italic text-[11px] leading-relaxed">
+                                                                            &ldquo;{citation}&rdquo;
+                                                                        </blockquote>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </>
                                                     ) : check.status === "error" ? (
-                                                        <span className="text-red-400">{check.error_message || "Error during check."}</span>
+                                                        <span className="text-red-400 font-medium">Failed: {check.error_message || "Unknown error during check."}</span>
                                                     ) : check.status === "no_change" ? (
                                                         <span className="text-zinc-500 italic">No changes detected in this check.</span>
                                                     ) : (
