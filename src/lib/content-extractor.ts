@@ -42,17 +42,25 @@ export function extractReadableText(html: string, _url: string): string {
             rawText = $("body").text();
         }
 
-        // Final fallback to the whole document
+        // Final fallback to the whole document if body is also empty
         if (!rawText.trim()) {
             rawText = $.text();
         }
 
         // Clean up whitespace (remove excessive newlines and spaces)
-        return rawText
+        const cleanedText = rawText
             .replace(/^[ \t]+|[ \t]+$/gm, "") // Trim spaces from start/end of each line
             .replace(/\n{3,}/g, "\n\n")       // Collapse 3+ newlines to 2
             .replace(/[ \t]+/g, " ")          // Collapse multiple spaces/tabs to 1
             .trim();
+
+        // Handle edge case: Page is entirely client-side rendered (like a bare Create React App)
+        // where all static tags (script, noscript, style) were removed leaving literally ""
+        if (!cleanedText && html.includes("<script")) {
+            return "[Client-side rendered application - No static text content found. The page likely requires JavaScript execution to display content.]";
+        }
+
+        return cleanedText;
     } catch (error) {
         console.warn("[content-extractor] Cheerio extraction failed:", error);
 

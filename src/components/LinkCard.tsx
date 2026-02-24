@@ -361,6 +361,18 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                         </div>
                     )}
 
+                    {/* Check Result: Error message (always shown above history for the active check) */}
+                    {checkResult && checkResult.status === "error" && (
+                        <div className="mt-4 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
+                            <p className="text-sm text-red-400 flex items-center gap-2">
+                                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Check Failed: {checkResult.check.error_message || "Unknown error"}
+                            </p>
+                        </div>
+                    )}
+
                     {/* Check History (expandable) */}
                     {showHistory && (
                         <div className="mt-4 border-t border-zinc-800 pt-3">
