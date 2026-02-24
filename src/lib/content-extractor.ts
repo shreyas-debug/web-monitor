@@ -28,15 +28,24 @@ export function extractReadableText(html: string, _url: string): string {
             "script, style, noscript, iframe, svg, nav, footer, header, .nav, .footer, .header, .menu, .sidebar, #nav, #footer, #header"
         ).remove();
 
-        // Target the main content area if it exists, otherwise use the whole body
         let contentEl = $("main, article, [role='main'], #main, #content").first();
 
+        // Fallback to the whole document body if semantic tags are missing
         if (!contentEl.length) {
             contentEl = $("body");
         }
 
-        // Fallback to the whole document if somehow body is missing
-        const rawText = contentEl.length ? contentEl.text() : $.text();
+        let rawText = contentEl.text();
+
+        // If semantic tags were found but they are suspiciously empty, fall back to body
+        if (rawText.trim().length < 50 && contentEl.get(0)?.tagName.toLowerCase() !== 'body') {
+            rawText = $("body").text();
+        }
+
+        // Final fallback to the whole document
+        if (!rawText.trim()) {
+            rawText = $.text();
+        }
 
         // Clean up whitespace (remove excessive newlines and spaces)
         return rawText

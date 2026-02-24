@@ -329,8 +329,8 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                         </div>
                     )}
 
-                    {/* Check Result: Diff + AI Summary (shown inline after check, hidden if history is open) */}
-                    {!showHistory && checkResult && checkResult.status === "success" && diffData && diffData.length > 0 && (
+                    {/* Check Result: Diff + AI Summary (always shown above history) */}
+                    {checkResult && checkResult.status === "success" && diffData && diffData.length > 0 && (
                         <DiffView
                             diff={diffData}
                             summary={checkResult.check.diff_summary}
@@ -338,7 +338,7 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     )}
 
                     {/* Check Result: First check success (content saved, but no previous to diff against) */}
-                    {!showHistory && checkResult && checkResult.status === "success" && (!diffData || diffData.length === 0) && (
+                    {checkResult && checkResult.status === "success" && (!diffData || diffData.length === 0) && (
                         <div className="mt-4 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
                             <p className="text-sm text-emerald-300 flex items-center gap-2">
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -350,7 +350,7 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     )}
 
                     {/* Check Result: No Change message */}
-                    {!showHistory && checkResult && checkResult.status === "no_change" && (
+                    {checkResult && checkResult.status === "no_change" && (
                         <div className="mt-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
                             <p className="text-sm text-amber-300 flex items-center gap-2">
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
