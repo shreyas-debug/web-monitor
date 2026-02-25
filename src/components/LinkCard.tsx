@@ -21,6 +21,28 @@ import { StatusBadge } from "./StatusBadge";
 import { DiffView, parseMarkdownBold } from "./DiffView";
 import type { LinkWithLatestCheck, LinkCheck, CheckResult, DiffChange } from "@/lib/types";
 
+function getFriendlyErrorMessage(rawError: string): string {
+    if (!rawError) return "An unknown error occurred.";
+    const lower = rawError.toLowerCase();
+
+    if (lower.includes("could not extract readable content")) {
+        return "This page requires login, blocks automated monitors, or contains no readable text (e.g. it's a PDF).";
+    }
+    if (lower.includes("http 40")) {
+        return "The website blocked access. It may require a login or have bot protection (e.g., Cloudflare) enabled.";
+    }
+    if (lower.includes("http 50") || lower.includes("timed out")) {
+        return "The target website took too long to respond or the connection timed out.";
+    }
+    if (lower.includes("network error") || lower.includes("network connection lost") || lower.includes("fetch failed") || lower.includes("127.0.0.1") || lower.includes("localhost")) {
+        return "Could not reach the website. Note: Local interfaces (127.0.0.1) cannot be accessed from cloud servers.";
+    }
+    if (lower.includes("invalid url")) {
+        return "The provided URL format is invalid.";
+    }
+    return rawError;
+}
+
 interface LinkCardProps {
     link: LinkWithLatestCheck;
     onDelete: () => void;
@@ -325,7 +347,8 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     {/* Error message */}
                     {error && (
                         <div className="mt-3 p-2 rounded bg-red-500/10 border border-red-500/20">
-                            <p className="text-xs text-red-400">{error}</p>
+                            <p className="text-xs text-red-400 font-medium">{getFriendlyErrorMessage(error)}</p>
+                            <p className="text-[10px] text-zinc-500 mt-1 font-mono break-all">{error}</p>
                         </div>
                     )}
 
@@ -377,11 +400,17 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                     {/* Check Result: Error message (always shown above history for the active check) */}
                     {checkResult && checkResult.status === "error" && (
                         <div className="mt-4 p-3 rounded-lg bg-red-500/5 border border-red-500/20">
-                            <p className="text-sm text-red-400 flex items-center gap-2">
+                            <p className="text-sm text-red-400 flex items-center gap-2 font-medium">
                                 <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                Check Failed: {checkResult.check.error_message || "Unknown error"}
+                                Check Failed
+                            </p>
+                            <p className="mt-1.5 text-xs text-red-300 ml-6">
+                                {getFriendlyErrorMessage(checkResult.check.error_message || "")}
+                            </p>
+                            <p className="mt-1.5 text-[10px] text-zinc-500/80 ml-6 font-mono break-all">
+                                Detail: {checkResult.check.error_message || "Unknown error"}
                             </p>
                         </div>
                     )}
@@ -442,7 +471,10 @@ export function LinkCard({ link, onDelete, onCheckComplete }: LinkCardProps) {
                                                     ) : check.status === "initial_baseline" ? (
                                                         <span className="text-indigo-400 italic">Baseline established.</span>
                                                     ) : check.status === "error" ? (
-                                                        <span className="text-red-400 font-medium">Failed: {check.error_message || "Unknown error during check."}</span>
+                                                        <div className="space-y-1">
+                                                            <span className="text-red-400 font-medium block">Failed: {getFriendlyErrorMessage(check.error_message || "")}</span>
+                                                            <span className="text-zinc-500 text-[10px] font-mono block break-all">Detail: {check.error_message || "Unknown error during check."}</span>
+                                                        </div>
                                                     ) : check.status === "no_change" ? (
                                                         <span className="text-zinc-500 italic">No changes detected in this check.</span>
                                                     ) : (
