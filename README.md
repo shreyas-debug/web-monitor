@@ -1,5 +1,7 @@
 # Web Monitor + AI Summary
 
+**Live Demo**: [https://web-monitor-two.vercel.app/](https://web-monitor-two.vercel.app/)
+
 A lightweight, production-ready webpage change monitor with AI-powered summaries.
 
 ## What it does
